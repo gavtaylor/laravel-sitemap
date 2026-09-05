@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.4.0...main)
+## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.5.0...main)
+
+## [v0.5.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.5.0) - 2026-09-05
 
 - `robots.txt` is now kept in sync automatically after a deploy (the same `sync_robots_after_commands` signal used for cache-clearing, default `['migrate']`), instead of relying on someone remembering to run `sitemap:link-robots` manually - this was found missing on multiple real sites after install. Creates the file if it's missing entirely (allowing all crawling), appends the `Sitemap:` line if the file exists without one, and logs a warning - without ever overwriting it - if an existing `Sitemap:` line points somewhere else, since that's a misconfiguration only a human can judge. `RobotsTxtWarning` is replaced by `RobotsTxtSync`, which does both the passive check and the new writing.
 
