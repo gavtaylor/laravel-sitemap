@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.2.0...main)
+## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.3.0...main)
+
+## [v0.3.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.3.0) - 2026-09-05
 
 - New `sitemap:link-robots` command adds a `Sitemap:` line to `public/robots.txt` pointing at the XML sitemap - the actual mechanism crawlers use for passive discovery (an HTML `<link>` tag doesn't help). A boot-time warning points at the command if `robots.txt` exists without that line. Not automatic: `robots.txt` is normally a static file the web server serves directly, so a route can't safely add it, and the package can't assume `public/` is writable in production.
 - Fixed: a route resolver (`route_resolvers`) could fail with `Route [...] not defined` when the sitemap was scanned without a prior HTTP dispatch in the same request (e.g. from a console command) - `RouteScanner` now builds the resolved URL directly from the route's own URI pattern instead of re-looking it up by name via the global `route()` helper, which depends on a route-name index that Laravel only refreshes as a side effect of matching a real request.
