@@ -64,6 +64,10 @@ final class RouteScanner
             return false;
         }
 
+        if ($this->hasFragment($route)) {
+            return false;
+        }
+
         if ($this->isOwnRoute($route)) {
             return false;
         }
@@ -91,6 +95,18 @@ final class RouteScanner
     private function isRedirect(Route $route): bool
     {
         return $route->getControllerClass() === '\Illuminate\Routing\RedirectController';
+    }
+
+    /**
+     * A browser never sends a URL's fragment (the part after `#`) to the
+     * server - so a route registered with one in its URI (e.g. to give an
+     * in-page anchor its own named route) can never actually be requested,
+     * and would otherwise show up as a spurious, non-canonical duplicate of
+     * its own base URL in the sitemap.
+     */
+    private function hasFragment(Route $route): bool
+    {
+        return str_contains($route->uri(), '#');
     }
 
     private function isOwnRoute(Route $route): bool

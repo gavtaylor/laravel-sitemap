@@ -47,6 +47,23 @@ it('excludes a Route::permanentRedirect() route', function () {
     expect(scannedUris())->not->toContain('/legacy-page');
 });
 
+it('excludes a route whose URI contains a fragment', function () {
+    RouteFacade::get('/pricing#annual', fn () => '')->name('pricing.annual');
+
+    $urls = collect(scannedUrls())->map(fn (SitemapUrl $url) => $url->url);
+
+    expect($urls)->not->toContain(url('pricing#annual'));
+});
+
+it('does not exclude the fragment route\'s base path when it is registered separately', function () {
+    RouteFacade::get('/pricing', fn () => '')->name('pricing');
+    RouteFacade::get('/pricing#annual', fn () => '')->name('pricing.annual');
+
+    $urls = collect(scannedUrls())->map(fn (SitemapUrl $url) => $url->url);
+
+    expect($urls)->toContain(url('pricing'))->not->toContain(url('pricing#annual'));
+});
+
 it('includes a Route::view() route', function () {
     RouteFacade::view('/terms', 'welcome')->name('terms');
 
