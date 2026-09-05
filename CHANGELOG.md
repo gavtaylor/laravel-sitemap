@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.3.0...main)
+## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.4.0...main)
+
+## [v0.4.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.4.0) - 2026-09-05
 
 - The HTML sitemap now groups a route by its own name prefix first (Laravel's native `Route::name('about-us.')->group(...)` convention) before falling back to its URL segment - lets otherwise-unrelated pages be grouped together (e.g. to match a site's nav menu) without renaming or moving any URL. A route's label strips a redundant leading repeat of its group name (`about-us.plan` -> label "About Us Plan" -> "Plan", since "About Us" is already the section heading).
 
