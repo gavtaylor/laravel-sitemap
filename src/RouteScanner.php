@@ -130,17 +130,44 @@ final class RouteScanner
         foreach ($items as $item) {
             $resolved = $this->normalizeResolvedItem($item, $route);
 
-            $url = route($name, $resolved['parameters']);
+            $uri = $this->substituteParameters($route->uri(), $resolved['parameters']);
+            $url = (string) url($uri);
 
             $urls[] = new SitemapUrl(
                 url: $url,
-                group: $this->group((string) parse_url($url, PHP_URL_PATH)),
-                label: $resolved['label'] ?? $this->labelFromSegment((string) parse_url($url, PHP_URL_PATH)),
+                group: $this->group($uri),
+                label: $resolved['label'] ?? $this->labelFromSegment($uri),
                 lastmod: $this->normalizeLastmod($resolved['lastmod']),
             );
         }
 
         return $urls;
+    }
+
+    /**
+     * Substitutes resolved values into the route's own URI pattern directly,
+     * rather than looking the route up again by name via the global route()
+     * helper - Illuminate\Routing\RouteCollection only indexes a route by
+     * name once *something* has forced a refresh of its name lookup table
+     * (normally triggered by dispatching a real HTTP request), which a named
+     * route registered earlier in the very same scan may not have had happen
+     * yet. Substituting directly needs no such lookup: the concrete Route
+     * instance is already in hand from the scan itself.
+     *
+     * @param  array<string, mixed>  $parameters
+     */
+    private function substituteParameters(string $uri, array $parameters): string
+    {
+        foreach ($parameters as $name => $value) {
+            $uri = preg_replace(
+                '/\{'.preg_quote((string) $name, '/').'\??\}/',
+                rawurlencode((string) $value),
+                $uri,
+                1,
+            ) ?? $uri;
+        }
+
+        return $uri;
     }
 
     /**

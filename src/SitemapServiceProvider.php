@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace GavTaylor\Sitemap;
 
 use GavTaylor\Sitemap\Console\Commands\ClearSitemapCacheCommand;
+use GavTaylor\Sitemap\Console\Commands\LinkRobotsTxtCommand;
 use GavTaylor\Sitemap\Http\Controllers\HtmlSitemapController;
 use GavTaylor\Sitemap\Http\Controllers\XmlSitemapController;
+use GavTaylor\Sitemap\Support\RobotsTxtWarning;
 use GavTaylor\Sitemap\Support\RouteCollisionWarning;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -41,6 +43,7 @@ final class SitemapServiceProvider extends ServiceProvider
 
         $this->commands([
             ClearSitemapCacheCommand::class,
+            LinkRobotsTxtCommand::class,
         ]);
 
         $this->registerCacheClearOnDeploy();
@@ -77,6 +80,7 @@ final class SitemapServiceProvider extends ServiceProvider
 
         (new RouteCollisionWarning($this->app->make('router'), $htmlPath))->check();
         (new RouteCollisionWarning($this->app->make('router'), $xmlPath))->check();
+        (new RobotsTxtWarning($this->app->make('path.public').'/robots.txt', url($xmlPath)))->check();
 
         $middleware = array_values(array_filter((array) config('sitemap.middleware', [])));
 

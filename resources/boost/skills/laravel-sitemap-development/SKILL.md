@@ -33,6 +33,7 @@ Use this skill when a Laravel application needs to integrate the Laravel Sitemap
 - **`lastmod`**: only set `lastmod_resolver` (an invokable class-string, receives the `Illuminate\Routing\Route`, returns a `DateTimeInterface|null`) if the app can genuinely track when a route's content last changed. Google disregards a `lastmod` it can't trust more than it disregards a missing one - never wire this up to `now()` or anything that changes on every deploy.
 - **Large sites**: once the scanned URL count exceeds `chunk_size` (default 50,000, matching the sitemaps.org/Google limit), `/sitemap.xml` automatically serves a `<sitemapindex>` instead of a flat `<urlset>`, with numbered pages at `?page=1`, `?page=2`, etc. Nothing to configure for this to work.
 - **Named routes**: `route('sitemap.html')` / `route('sitemap.xml')`. Extra middleware aliases or classes go in `sitemap.middleware`.
+- **Discovery**: run `php artisan sitemap:link-robots` once to add a `Sitemap:` line to `public/robots.txt` - that's how a crawler actually finds `sitemap.xml` passively, not an HTML `<link>` tag (there isn't one, and adding one wouldn't help). The package can't do this automatically itself: `robots.txt` is normally a static file the web server serves directly, so a package-registered route for it would never be reached, and the package can't assume it can write to `public/` in production. If `robots.txt` already exists without that line, a boot-time warning points back at this command.
 
 ### 3. Verify
 
@@ -40,6 +41,7 @@ Use this skill when a Laravel application needs to integrate the Laravel Sitemap
 - Fetch `/sitemap.xml` and confirm it validates as `sitemaps.org` XML (namespace `http://www.sitemaps.org/schemas/sitemap/0.9`, a `<loc>` per URL).
 - If `lastmod_resolver` was added, confirm it returns `null` rather than a stale/incorrect date for routes it can't confidently date.
 - If a route resolver was added, confirm the sitemap actually gained one entry per real item (not just the static parts of the URL, and not a single placeholder entry), and that `sitemap:clear` (or a deploy hook) picks up new items as they're added.
+- Fetch `robots.txt` and confirm it has a `Sitemap:` line pointing at this app's XML sitemap URL.
 
 ## Rules, References, and Templates
 
@@ -61,3 +63,5 @@ Read before executing:
 - do not leave a content-listing route's `{parameter}` unresolved just because it takes an extra config line - a resolver is cheap and this is what turns "the sitemap only has the homepage" into a sitemap worth having
 - do not register a `Closure` as a route resolver or `lastmod_resolver` - both must survive `config:cache`, so only an invokable class-string or `'\Class@method'` string is allowed
 - do not exclude routes one name at a time when a single middleware or wildcard pattern would do
+- do not add an HTML `<link>` tag pointing at the XML sitemap thinking it aids discovery - crawlers don't use it; `robots.txt`'s `Sitemap:` line is what matters, via `php artisan sitemap:link-robots`
+- do not treat "both an HTML and an XML sitemap link to the same URLs" as a duplicate-content risk - it isn't one; Google's own guidance recommends having both

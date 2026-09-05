@@ -46,6 +46,18 @@ A raw URL makes a poor link's visible text, so every `SitemapUrl` carries a huma
 
 Once the number of included URLs exceeds `chunk_size` (default 50,000, matching the sitemaps.org/Google per-file limit), `/sitemap.xml` automatically serves a `<sitemapindex>` pointing at numbered pages (`?page=1`, `?page=2`, ...) instead of a flat `<urlset>`. Nothing to configure for this to kick in.
 
+## Letting crawlers discover it
+
+A crawler finds `sitemap.xml` passively via a `Sitemap:` line in `robots.txt` - not via an HTML `<link>` tag, and not automatically, since `robots.txt` is almost always served as a static file in `public/` (as Laravel's own default install ships one) that the web server returns directly, before Laravel ever sees the request. This package can't safely add a route for it (it would be silently shadowed by that static file) or assume it can write to `public/` in production, so it doesn't touch `robots.txt` on its own. Instead:
+
+```bash
+php artisan sitemap:link-robots
+```
+
+Creates `public/robots.txt` if it doesn't exist, or appends a `Sitemap:` line to it if one referencing this app's XML sitemap isn't already there. Safe to run more than once - it's a no-op once the line is present. If `robots.txt` already exists but is missing that line, a warning is logged at boot pointing at this command, the same way an existing route/static-file collision is warned about elsewhere in this package.
+
+This has nothing to do with duplicate-content risk, in case that's a concern: having both an HTML sitemap (for people) and an XML sitemap (for crawlers) pointing at the same URLs isn't a penalty - Google's own guidance recommends exactly this pairing. An XML sitemap isn't indexed as a page in its own right; it's a protocol file, not content competing for ranking.
+
 ## Configuration
 
 ```bash
