@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.3.0...main)
 
+- The HTML sitemap now groups a route by its own name prefix first (Laravel's native `Route::name('about-us.')->group(...)` convention) before falling back to its URL segment - lets otherwise-unrelated pages be grouped together (e.g. to match a site's nav menu) without renaming or moving any URL. A route's label strips a redundant leading repeat of its group name (`about-us.plan` -> label "About Us Plan" -> "Plan", since "About Us" is already the section heading).
+
 ## [v0.3.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.3.0) - 2026-09-05
 
 - New `sitemap:link-robots` command adds a `Sitemap:` line to `public/robots.txt` pointing at the XML sitemap - the actual mechanism crawlers use for passive discovery (an HTML `<link>` tag doesn't help). A boot-time warning points at the command if `robots.txt` exists without that line. Not automatic: `robots.txt` is normally a static file the web server serves directly, so a route can't safely add it, and the package can't assume `public/` is writable in production.

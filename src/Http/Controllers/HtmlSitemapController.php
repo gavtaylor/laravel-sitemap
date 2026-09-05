@@ -9,7 +9,6 @@ use GavTaylor\Sitemap\SitemapCache;
 use GavTaylor\Sitemap\SitemapUrl;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\View;
-use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 final class HtmlSitemapController
@@ -47,13 +46,14 @@ final class HtmlSitemapController
 
         // The general bucket belongs first regardless of where it falls
         // alphabetically - a visitor expects "home" at the top of a list of
-        // pages, not buried wherever its group name happens to sort.
-        $ordered = collect([RouteScanner::ROOT_GROUP => $general])
+        // pages, not buried wherever its group name happens to sort. Group
+        // labels are already display-ready (RouteScanner headlines the
+        // automatic ones and leaves a custom sitemap_group metadata value
+        // exactly as the app set it - e.g. "ECA Committee" must not be
+        // re-headlined into "Eca Committee").
+        $groups = collect([RouteScanner::ROOT_GROUP => $general])
             ->filter(fn (Collection $urls) => $urls->isNotEmpty())
             ->merge($keptGroups->except(RouteScanner::ROOT_GROUP)->sortKeys());
-
-        /** @var Collection<string, Collection<int, SitemapUrl>> $groups */
-        $groups = $ordered->mapWithKeys(fn (Collection $urls, string $group) => [Str::headline($group) => $urls]);
 
         return response(
             View::make('sitemap::html', ['groups' => $groups])->render(),

@@ -103,7 +103,7 @@ it('groups a root-level route under general', function () {
 
     $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => (parse_url($url->url, PHP_URL_PATH) ?? '/') === '/');
 
-    expect($url->group)->toBe('general');
+    expect($url->group)->toBe('General');
 });
 
 it('groups a nested route by its first path segment', function () {
@@ -111,7 +111,40 @@ it('groups a nested route by its first path segment', function () {
 
     $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/blog/latest');
 
-    expect($url->group)->toBe('blog');
+    expect($url->group)->toBe('Blog');
+});
+
+it('groups routes by their name prefix instead of their URL segment', function () {
+    RouteFacade::name('about-us.')->group(function () {
+        RouteFacade::get('/about-us', fn () => '')->name('index');
+        RouteFacade::get('/six-point-plan', fn () => '')->name('plan');
+    });
+
+    $urls = collect(scannedUrls())->filter(
+        fn (SitemapUrl $url) => in_array(parse_url($url->url, PHP_URL_PATH), ['/about-us', '/six-point-plan'], true),
+    );
+
+    expect($urls)->toHaveCount(2);
+    expect($urls->pluck('group')->unique()->all())->toBe(['About Us']);
+});
+
+it('strips a redundant leading group name from a name-prefix-grouped route\'s label', function () {
+    RouteFacade::name('about-us.')->group(function () {
+        RouteFacade::get('/six-point-plan', fn () => '')->name('six-point-plan');
+    });
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/six-point-plan');
+
+    expect($url->group)->toBe('About Us');
+    expect($url->label)->toBe('Six Point Plan');
+});
+
+it('falls back to the URL segment when the route name has no prefix', function () {
+    RouteFacade::get('/contact', fn () => '')->name('contact');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/contact');
+
+    expect($url->group)->toBe('Contact');
 });
 
 it('does not include this package\'s own sitemap routes', function () {

@@ -28,7 +28,7 @@ final class RouteScanner
     /**
      * The group a route with no URI segments (the homepage) is placed in.
      */
-    public const string ROOT_GROUP = 'general';
+    public const string ROOT_GROUP = 'General';
 
     public function __construct(
         private readonly Router $router,
@@ -56,11 +56,12 @@ final class RouteScanner
             }
 
             $url = (string) url($route->uri());
+            $group = $this->group($route);
 
             $urls[] = new SitemapUrl(
                 url: $url,
-                group: $this->group($route->uri()),
-                label: $this->label($route),
+                group: $group,
+                label: $this->stripRedundantGroupPrefix($this->label($route), $group),
                 lastmod: $this->lastmod($route),
             );
         }
@@ -132,11 +133,12 @@ final class RouteScanner
 
             $uri = $this->substituteParameters($route->uri(), $resolved['parameters']);
             $url = (string) url($uri);
+            $group = $this->group($route);
 
             $urls[] = new SitemapUrl(
                 url: $url,
-                group: $this->group($uri),
-                label: $resolved['label'] ?? $this->labelFromSegment($uri),
+                group: $group,
+                label: $resolved['label'] ?? $this->stripRedundantGroupPrefix($this->labelFromSegment($uri), $group),
                 lastmod: $this->normalizeLastmod($resolved['lastmod']),
             );
         }
@@ -295,11 +297,43 @@ final class RouteScanner
         return $path !== false && str_starts_with($path, base_path('vendor'));
     }
 
-    private function group(string $uri): string
+    /**
+     * Two-tier fallback: the route's own name prefix (Laravel's own
+     * `Route::name('about-us.')->group(...)` convention) if it has one,
+     * else the URL's first segment.
+     */
+    private function group(Route $route): string
     {
-        $segment = explode('/', trim($uri, '/'))[0];
+        return $this->namePrefixGroup($route) ?? $this->urlSegmentGroup($route);
+    }
 
-        return $segment === '' ? self::ROOT_GROUP : $segment;
+    /**
+     * Laravel's own convention for organising related route names -
+     * `Route::name('about-us.')->group(fn () => ...)` - without touching
+     * URLs at all. A route named `about-us.index` groups under "About Us"
+     * alongside `about-us.plan`, even though their URIs (`/about-us`,
+     * `/six-point-plan`) share no path segment in common. Only used when
+     * the name actually has a prefix; a flat name (no dot) falls through
+     * to the URL segment below exactly as before.
+     */
+    private function namePrefixGroup(Route $route): ?string
+    {
+        $name = $route->getName();
+
+        if ($name === null || ! str_contains($name, '.')) {
+            return null;
+        }
+
+        $prefix = Str::before($name, '.');
+
+        return $prefix === '' ? null : Str::headline($prefix);
+    }
+
+    private function urlSegmentGroup(Route $route): string
+    {
+        $segment = explode('/', trim($route->uri(), '/'))[0];
+
+        return $segment === '' ? self::ROOT_GROUP : Str::headline($segment);
     }
 
     /**
@@ -337,6 +371,19 @@ final class RouteScanner
         $segment = collect(explode('/', trim($uri, '/')))->last();
 
         return $segment !== null && $segment !== '' ? Str::headline($segment) : 'Home';
+    }
+
+    /**
+     * A route named for the sake of grouping (e.g. `about-us.plan`, grouped
+     * under "About Us" via its name prefix) would otherwise get a label of
+     * "About Us Plan" - correct by the same rules that turn `clients.index`
+     * into "Clients", but redundant once "About Us" is already showing as
+     * the group heading above it. Strips exactly that leading repeat, never
+     * a resolver's own explicit label (never passed through this method).
+     */
+    private function stripRedundantGroupPrefix(string $label, string $group): string
+    {
+        return Str::startsWith($label, "{$group} ") ? Str::after($label, "{$group} ") : $label;
     }
 
     private function lastmod(Route $route): ?DateTimeInterface

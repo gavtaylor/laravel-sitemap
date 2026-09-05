@@ -14,7 +14,7 @@ it('lists registered pages alphabetically within their group', function () {
 
     $this->get(config('sitemap.path'))
         ->assertOk()
-        ->assertSeeInOrder(['Blog Apple', 'Blog Zebra']);
+        ->assertSeeInOrder(['Apple', 'Zebra']);
 });
 
 it('shows a human-readable label as the link text, not the raw URL', function () {

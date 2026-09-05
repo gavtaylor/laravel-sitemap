@@ -30,7 +30,7 @@ The HTML view receives a single variable:
 
 | Variable  | Type                                          | Description                                                    |
 |-----------|------------------------------------------------|------------------------------------------------------------------|
-| `$groups` | `Collection<string, Collection<int, SitemapUrl>>` | Included URLs, grouped by their first path segment (headlined, e.g. `blog` -> "Blog") and sorted alphabetically by label both within and across groups. A segment with only one page (e.g. `/about`) is folded into "General" alongside the homepage instead of getting a one-item section of its own; "General" always comes first, with the homepage pinned at the top of it |
+| `$groups` | `Collection<string, Collection<int, SitemapUrl>>` | Included URLs, grouped (see [Grouping](#grouping) below) and sorted alphabetically by label both within and across groups. A group with only one page (e.g. `/about`) is folded into "General" alongside the homepage instead of getting a one-item section of its own; "General" always comes first, with the homepage pinned at the top of it |
 
 `SitemapUrl` is a simple read-only object: `$url->url` (string), `$url->group` (string, the raw un-headlined segment), `$url->label` (string, human-readable link text - see below), `$url->lastmod` (`?DateTimeInterface`).
 
@@ -66,7 +66,24 @@ php artisan vendor:publish --tag=sitemap-config
 
 See the generated `config/sitemap.php` for every option, documented inline. Highlights below.
 
-### Excluding routes
+### Grouping
+
+The HTML sitemap groups pages into sections. Two-tier fallback, no config needed either way:
+
+1. **The route's own name prefix**, if it has one - Laravel's native `Route::name('about-us.')->group(...)` convention, with no URL or existing-name changes required for routes that don't need it:
+
+   ```php
+   Route::name('about-us.')->group(function () {
+       Route::get('/about-us', ...)->name('index');       // about-us.index
+       Route::get('/six-point-plan', ...)->name('plan');  // about-us.plan
+   });
+   ```
+
+   Both group under "About Us" (headlined from the `about-us` prefix) even though their URLs share no path segment. A route's label is derived the same way it always is (see [Labels](#labels)), but with a redundant leading repeat of the group name stripped - `about-us.plan` becomes "About Us Plan" as a label, then "About Us" is stripped since it's already the section heading, leaving just "Plan".
+
+2. **The URL's first path segment**, for a route with a flat, unprefixed name (or none at all) - unchanged from a plain URL-segment scan: `/blog/latest` groups under "Blog" regardless of its name.
+
+Reorganise existing routes into name-prefixed groups only where it's actually useful - a route that's already fine on its own doesn't need one.
 
 Three independent, composable ways to keep a route out of both sitemaps:
 
