@@ -61,7 +61,7 @@ Three independent, composable ways to keep a route out of both sitemaps:
 'excluded_paths' => ['internal/*'],
 ```
 
-`excluded_route_names` and `excluded_paths` are matched with `Str::is()`, so wildcards work. Routes with any `{parameter}` at all, required or optional (e.g. `/posts/{post}`, `/archive/{year?}`), are always excluded - there is no per-route model-enumeration resolver in this package, by design. Routes owned by a vendor package (Horizon, Telescope, Debugbar, this package's own routes, etc.) are excluded automatically, the same way `php artisan route:list --except-vendor` identifies them.
+`excluded_route_names` and `excluded_paths` are matched with `Str::is()`, so wildcards work. Routes with any `{parameter}` at all, required or optional (e.g. `/posts/{post}`, `/archive/{year?}`), are always excluded - there is no per-route model-enumeration resolver in this package, by design. `Route::redirect()`/`Route::permanentRedirect()` routes are always excluded too - a sitemap should never send a crawler to a URL that immediately 3xx's it elsewhere; list the destination instead. `Route::view()` routes are included normally. Routes owned by a vendor package (Horizon, Telescope, Debugbar, this package's own routes, etc.) are excluded automatically, the same way `php artisan route:list --except-vendor` identifies them.
 
 ### Caching
 

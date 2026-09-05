@@ -60,6 +60,10 @@ final class RouteScanner
             return false;
         }
 
+        if ($this->isRedirect($route)) {
+            return false;
+        }
+
         if ($this->isOwnRoute($route)) {
             return false;
         }
@@ -73,6 +77,20 @@ final class RouteScanner
         }
 
         return ! $this->isVendorRoute($route);
+    }
+
+    /**
+     * A sitemap should never send a search engine to a URL that immediately
+     * 3xx's it somewhere else - list the destination, not the redirect.
+     * Route::redirect()/Route::permanentRedirect() both register
+     * \Illuminate\Routing\RedirectController, which is deliberately *not*
+     * treated as a vendor route below (so an app's own Route::view() /
+     * Route::redirect() calls aren't excluded as if they were framework
+     * internals) - so this needs its own, separate check.
+     */
+    private function isRedirect(Route $route): bool
+    {
+        return $route->getControllerClass() === '\Illuminate\Routing\RedirectController';
     }
 
     private function isOwnRoute(Route $route): bool

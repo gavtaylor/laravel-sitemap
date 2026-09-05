@@ -35,6 +35,24 @@ it('excludes a route with an optional parameter', function () {
     expect(scannedUris())->not->toContain('/archive/{year?}');
 });
 
+it('excludes a Route::redirect() route', function () {
+    RouteFacade::redirect('/old-page', '/new-page', 301);
+
+    expect(scannedUris())->not->toContain('/old-page');
+});
+
+it('excludes a Route::permanentRedirect() route', function () {
+    RouteFacade::permanentRedirect('/legacy-page', '/current-page');
+
+    expect(scannedUris())->not->toContain('/legacy-page');
+});
+
+it('includes a Route::view() route', function () {
+    RouteFacade::view('/terms', 'welcome')->name('terms');
+
+    expect(scannedUris())->toContain('/terms');
+});
+
 it('excludes a route behind auth middleware', function () {
     RouteFacade::get('/account', fn () => '')->middleware('auth')->name('account');
 
