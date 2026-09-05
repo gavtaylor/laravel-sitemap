@@ -159,6 +159,42 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Route resolvers
+    |--------------------------------------------------------------------------
+    |
+    | A route with a {parameter} (e.g. `/blog/{slug}`) has no single URL of
+    | its own, so it's excluded from the sitemap unless a resolver is
+    | registered for it here, keyed by route name. A resolver is a callable
+    | (class-string of an invokable class, or a '\Class@method' string - not
+    | a Closure, so this file stays safe to cache with `config:cache`) that
+    | returns an iterable of the concrete values that route actually has.
+    | Each item can be a plain value for a single-parameter route:
+    |
+    |   'blog.show' => \App\Sitemap\PostSlugs::class,
+    |
+    |   final class PostSlugs
+    |   {
+    |       public function __invoke(): array
+    |       {
+    |           return array_keys(require resource_path('writing/posts.php'));
+    |       }
+    |   }
+    |
+    | ...or an array with 'parameters' (required - a map of every route
+    | parameter to its value), and optionally 'label' and 'lastmod', for
+    | full control (e.g. a route with more than one parameter, or wanting
+    | the sitemap to show a real title instead of a humanised slug):
+    |
+    |   ['parameters' => ['slug' => 'my-post'], 'label' => 'My Post', 'lastmod' => '2026-01-01']
+    |
+    */
+
+    'route_resolvers' => [
+        // 'blog.show' => \App\Sitemap\PostSlugs::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Last modified resolver
     |--------------------------------------------------------------------------
     |

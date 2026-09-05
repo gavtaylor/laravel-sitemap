@@ -132,10 +132,103 @@ it('resolves lastmod through the configured resolver', function () {
     expect($url->lastmod->format('Y-m-d'))->toBe('2026-01-01');
 });
 
+it('resolves a string lastmod through the configured resolver', function () {
+    config(['sitemap.lastmod_resolver' => StubStringLastmodResolver::class]);
+
+    RouteFacade::get('/updated-string', fn () => '')->name('updated-string');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/updated-string');
+
+    expect($url->lastmod)->not->toBeNull();
+    expect($url->lastmod->format('Y-m-d'))->toBe('2026-02-14');
+});
+
+it('labels a named route from its route name', function () {
+    RouteFacade::get('/about', fn () => '')->name('about');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/about');
+
+    expect($url->label)->toBe('About');
+});
+
+it('drops a resource-controller "index" suffix from the label', function () {
+    RouteFacade::get('/clients', fn () => '')->name('clients.index');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/clients');
+
+    expect($url->label)->toBe('Clients');
+});
+
+it('labels an unnamed route from its last URI segment', function () {
+    RouteFacade::get('/about-us', fn () => '');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/about-us');
+
+    expect($url->label)->toBe('About Us');
+});
+
+it('resolves a parameterized route with a registered resolver', function () {
+    config(['sitemap.route_resolvers' => ['blog.show' => StubSlugResolver::class]]);
+
+    RouteFacade::get('/blog/{slug}', fn (string $slug) => $slug)->name('blog.show');
+
+    $urls = collect(scannedUrls())->filter(fn (SitemapUrl $url) => str_contains($url->url, '/blog/'));
+
+    expect($urls->pluck('url')->all())->toContain(url('blog/first-post'), url('blog/second-post'));
+    expect($urls->firstWhere('url', url('blog/first-post'))->label)->toBe('First Post');
+});
+
+it('resolves a parameterized route with an explicit label and lastmod', function () {
+    config(['sitemap.route_resolvers' => ['blog.show' => StubDetailedResolver::class]]);
+
+    RouteFacade::get('/blog/{slug}', fn (string $slug) => $slug)->name('blog.show');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => $url->url === url('blog/hello-world'));
+
+    expect($url->label)->toBe('Hello, World!');
+    expect($url->lastmod->format('Y-m-d'))->toBe('2026-03-01');
+});
+
+it('does not resolve a parameterized route with no registered resolver', function () {
+    RouteFacade::get('/blog/{slug}', fn (string $slug) => $slug)->name('blog.show');
+
+    expect(scannedUris())->not->toContain('/blog/{slug}');
+});
+
 final class StubLastmodResolver
 {
     public function __invoke(Route $route): DateTimeInterface
     {
         return new DateTimeImmutable('2026-01-01');
+    }
+}
+
+final class StubStringLastmodResolver
+{
+    public function __invoke(Route $route): string
+    {
+        return '2026-02-14';
+    }
+}
+
+final class StubSlugResolver
+{
+    public function __invoke(Route $route): array
+    {
+        return ['first-post', 'second-post'];
+    }
+}
+
+final class StubDetailedResolver
+{
+    public function __invoke(Route $route): array
+    {
+        return [
+            [
+                'parameters' => ['slug' => 'hello-world'],
+                'label' => 'Hello, World!',
+                'lastmod' => '2026-03-01',
+            ],
+        ];
     }
 }

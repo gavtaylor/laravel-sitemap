@@ -6,7 +6,7 @@
 
 A sitemap for Laravel that scans your application's own registered routes instead of maintaining a separate sitemap definition - an HTML version for human visitors, and an XML version for search engines.
 
-There is no separate list of URLs to keep in sync. This package walks `Route::getRoutes()`, keeps the routes that are safe to publish (`GET`-able, no unresolved `{parameter}`, not behind authentication, not owned by a vendor package), and caches the result so the route table is only scanned once per cache window - not once per request.
+There is no separate list of URLs to keep in sync. This package walks `Route::getRoutes()`, keeps the routes that are safe to publish (`GET`-able, not behind authentication, not owned by a vendor package - a `{parameter}` route is included too, if you tell it how to enumerate one), and caches the result so the route table is only scanned once per cache window - not once per request.
 
 ## Installation
 
@@ -30,11 +30,15 @@ The HTML view receives a single variable:
 
 | Variable  | Type                                          | Description                                                    |
 |-----------|------------------------------------------------|------------------------------------------------------------------|
-| `$groups` | `Collection<string, Collection<int, SitemapUrl>>` | Included URLs, grouped by their first path segment and sorted alphabetically both within and across groups |
+| `$groups` | `Collection<string, Collection<int, SitemapUrl>>` | Included URLs, grouped by their first path segment (headlined, e.g. `blog` -> "Blog") and sorted alphabetically by label both within and across groups. A segment with only one page (e.g. `/about`) is folded into "General" alongside the homepage instead of getting a one-item section of its own; "General" always comes first, with the homepage pinned at the top of it |
 
-`SitemapUrl` is a simple read-only object: `$url->url` (string), `$url->group` (string), `$url->lastmod` (`?DateTimeInterface`).
+`SitemapUrl` is a simple read-only object: `$url->url` (string), `$url->group` (string, the raw un-headlined segment), `$url->label` (string, human-readable link text - see below), `$url->lastmod` (`?DateTimeInterface`).
 
 This is a public contract: once you've customised the view, treat changes to these variables as breaking changes.
+
+### Labels
+
+A raw URL makes a poor link's visible text, so every `SitemapUrl` carries a human-readable `label` too - the package's own bundled view uses it, and a custom one should too. It's derived from the route name where possible (`clients.index` -> "Clients" - the trailing "Index" from Laravel's resource-controller convention is dropped, since it reads as developer jargon rather than something a visitor would say), falling back to the last URI segment for an unnamed route (`/about-us` -> "About Us"). A [route resolver](#resolving-parameterized-routes) can supply an exact label per URL instead, when the humanised guess isn't good enough (e.g. a blog post's real title).
 
 ## The XML view
 
@@ -61,11 +65,55 @@ Three independent, composable ways to keep a route out of both sitemaps:
 'excluded_paths' => ['internal/*'],
 ```
 
-`excluded_route_names` and `excluded_paths` are matched with `Str::is()`, so wildcards work. Routes with any `{parameter}` at all, required or optional (e.g. `/posts/{post}`, `/archive/{year?}`), are always excluded - there is no per-route model-enumeration resolver in this package, by design. `Route::redirect()`/`Route::permanentRedirect()` routes are always excluded too - a sitemap should never send a crawler to a URL that immediately 3xx's it elsewhere; list the destination instead. A route whose URI contains a `#` fragment (e.g. `Route::get('/pricing#annual', ...)`, sometimes used to give an in-page anchor its own named route) is always excluded as well - a browser never sends the fragment to the server, so the route can never really be requested, and would otherwise show up as a spurious duplicate of its own base URL. `Route::view()` routes are included normally. Routes owned by a vendor package (Horizon, Telescope, Debugbar, this package's own routes, etc.) are excluded automatically, the same way `php artisan route:list --except-vendor` identifies them.
+`excluded_route_names` and `excluded_paths` are matched with `Str::is()`, so wildcards work. `Route::redirect()`/`Route::permanentRedirect()` routes are always excluded too - a sitemap should never send a crawler to a URL that immediately 3xx's it elsewhere; list the destination instead. A route whose URI contains a `#` fragment (e.g. `Route::get('/pricing#annual', ...)`, sometimes used to give an in-page anchor its own named route) is always excluded as well - a browser never sends the fragment to the server, so the route can never really be requested, and would otherwise show up as a spurious duplicate of its own base URL. `Route::view()` routes are included normally. Routes owned by a vendor package (Horizon, Telescope, Debugbar, this package's own routes, etc.) are excluded automatically, the same way `php artisan route:list --except-vendor` identifies them. A route with a `{parameter}` is excluded unless a [resolver](#resolving-parameterized-routes) is registered for it.
 
 **Known limitation:** only *declarative* redirects (`Route::redirect()`/`Route::permanentRedirect()`) are detected. A closure or controller method that calls the `redirect()` helper itself at runtime looks identical to a normal page from the route table alone - this package only ever inspects route definitions, and deliberately never executes a route to find out what it actually returns (doing so could trigger real side effects). If a route like that needs to stay out of the sitemap, exclude it explicitly by name or path.
 
 **`guest`-only pages are included by default.** A login/register/password-reset page has no `auth` middleware (it's the opposite - only reachable when signed *out*), so it isn't excluded by the default list. For an app that's entirely internal/private, add `'guest'` (or `'guest:*'`) to `excluded_middleware` if you don't want its auth-flow pages showing up in the sitemap.
+
+### Resolving parameterized routes
+
+A route like `/blog/{slug}` has no single URL of its own, so it's excluded by default - there's no way to know what concrete slugs exist just from the route table. Register a resolver, keyed by route name, to tell the package how to enumerate them:
+
+```php
+// config/sitemap.php
+'route_resolvers' => [
+    'blog.show' => \App\Sitemap\PostSlugs::class,
+],
+```
+
+A resolver is a callable - a class-string of an invokable class, or a `'\Class@method'` string, not a `Closure`, so the config file stays safe to `config:cache` - that returns an iterable of the route's concrete values. For a route with a single parameter, yield the plain values:
+
+```php
+final class PostSlugs
+{
+    public function __invoke(): array
+    {
+        return array_keys(require resource_path('writing/posts.php'));
+    }
+}
+```
+
+That's enough for `/blog/{slug}` to expand into one sitemap entry per key, with a humanised label built from the slug (`hello-world` -> "Hello World") and no `<lastmod>`. For a route with more than one parameter, or to control the label/`<lastmod>` exactly (e.g. a post's real title and its actual last-updated date), yield an array instead:
+
+```php
+final class PostSlugs
+{
+    public function __invoke(): array
+    {
+        return collect(require resource_path('writing/posts.php'))
+            ->map(fn (array $post, string $slug) => [
+                'parameters' => ['slug' => $slug],
+                'label' => $post['title'],
+                'lastmod' => $post['updated_at'] ?? null,
+            ])
+            ->values()
+            ->all();
+    }
+}
+```
+
+Only `parameters` is required in that form; omit `label`/`lastmod` to fall back to the humanised guess / no `<lastmod>` for that entry. The route must be named (resolvers are looked up by name), and the resolver receives the `Illuminate\Routing\Route` if it needs it (`public function __invoke(Route $route): array`).
 
 ### Caching
 

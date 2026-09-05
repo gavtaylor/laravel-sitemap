@@ -57,12 +57,12 @@ final class SitemapCache
     }
 
     /**
-     * @return list<array{url: string, group: string, lastmod: string|null}>|null
+     * @return list<array{url: string, group: string, label: string, lastmod: string|null}>|null
      */
     private function read(): ?array
     {
         try {
-            /** @var list<array{url: string, group: string, lastmod: string|null}>|null $cached */
+            /** @var list<array{url: string, group: string, label: string, lastmod: string|null}>|null $cached */
             $cached = $this->cache->get(self::CACHE_KEY);
 
             return $cached;
@@ -90,7 +90,7 @@ final class SitemapCache
     }
 
     /**
-     * @param  list<array{url: string, group: string, lastmod: string|null}>  $cached
+     * @param  list<array{url: string, group: string, label: string, lastmod: string|null}>  $cached
      * @return list<SitemapUrl>
      */
     private function hydrate(array $cached): array
@@ -100,6 +100,7 @@ final class SitemapCache
                 fn (array $url) => new SitemapUrl(
                     $url['url'],
                     $url['group'],
+                    $url['label'],
                     $url['lastmod'] !== null ? new DateTimeImmutable($url['lastmod']) : null,
                 ),
                 $cached,

@@ -11,19 +11,21 @@ final class SitemapUrl
     public function __construct(
         public readonly string $url,
         public readonly string $group,
+        public readonly string $label,
         public readonly ?DateTimeInterface $lastmod = null,
     ) {
         //
     }
 
     /**
-     * @return array{url: string, group: string, lastmod: string|null}
+     * @return array{url: string, group: string, label: string, lastmod: string|null}
      */
     public function toArray(): array
     {
         return [
             'url' => $this->url,
             'group' => $this->group,
+            'label' => $this->label,
             'lastmod' => $this->lastmod?->format(DateTimeInterface::ATOM),
         ];
     }

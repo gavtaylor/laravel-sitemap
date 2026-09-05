@@ -9,10 +9,10 @@
 
     @forelse ($groups as $group => $urls)
         <section>
-            <h2>{{ ucfirst($group) }}</h2>
+            <h2>{{ $group }}</h2>
             <ul>
                 @foreach ($urls as $url)
-                    <li><a href="{{ $url->url }}">{{ $url->url }}</a></li>
+                    <li><a href="{{ $url->url }}">{{ $url->label }}</a></li>
                 @endforeach
             </ul>
         </section>
