@@ -8,7 +8,7 @@ use GavTaylor\Sitemap\Console\Commands\ClearSitemapCacheCommand;
 use GavTaylor\Sitemap\Console\Commands\LinkRobotsTxtCommand;
 use GavTaylor\Sitemap\Http\Controllers\HtmlSitemapController;
 use GavTaylor\Sitemap\Http\Controllers\XmlSitemapController;
-use GavTaylor\Sitemap\Support\RobotsTxtWarning;
+use GavTaylor\Sitemap\Support\RobotsTxtSync;
 use GavTaylor\Sitemap\Support\RouteCollisionWarning;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Contracts\Events\Dispatcher;
@@ -47,6 +47,7 @@ final class SitemapServiceProvider extends ServiceProvider
         ]);
 
         $this->registerCacheClearOnDeploy();
+        $this->registerRobotsTxtSyncOnDeploy();
     }
 
     /**
@@ -68,6 +69,27 @@ final class SitemapServiceProvider extends ServiceProvider
         });
     }
 
+    /**
+     * A console command runs as the same user that just wrote the rest of
+     * the deployed code, unlike a real HTTP request - so this is the one
+     * place `RobotsTxtSync` is allowed to actually write, keyed off the
+     * same "a deploy probably just happened" signal as the cache-clear
+     * above. Configurable/disableable via `sitemap.sync_robots_after_commands`.
+     */
+    private function registerRobotsTxtSyncOnDeploy(): void
+    {
+        $this->app->make(Dispatcher::class)->listen(CommandFinished::class, function (CommandFinished $event): void {
+            /** @var list<string> $commands */
+            $commands = config('sitemap.sync_robots_after_commands', []);
+
+            if ($event->exitCode === 0 && in_array($event->command, $commands, true)) {
+                $xmlPath = (string) config('sitemap.xml_path', '/sitemap.xml');
+
+                (new RobotsTxtSync($this->app->make('path.public').'/robots.txt', url($xmlPath), canWrite: true))->check();
+            }
+        });
+    }
+
     private function registerRoutes(): void
     {
         if (! config('sitemap.enabled', true)) {
@@ -80,7 +102,7 @@ final class SitemapServiceProvider extends ServiceProvider
 
         (new RouteCollisionWarning($this->app->make('router'), $htmlPath))->check();
         (new RouteCollisionWarning($this->app->make('router'), $xmlPath))->check();
-        (new RobotsTxtWarning($this->app->make('path.public').'/robots.txt', url($xmlPath)))->check();
+        (new RobotsTxtSync($this->app->make('path.public').'/robots.txt', url($xmlPath), canWrite: false))->check();
 
         $middleware = array_values(array_filter((array) config('sitemap.middleware', [])));
 

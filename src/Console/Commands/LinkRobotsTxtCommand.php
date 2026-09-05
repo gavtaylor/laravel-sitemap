@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace GavTaylor\Sitemap\Console\Commands;
 
+use GavTaylor\Sitemap\Support\RobotsTxtSync;
+use GavTaylor\Sitemap\Support\RobotsTxtSyncOutcome;
 use Illuminate\Console\Command;
 
 final class LinkRobotsTxtCommand extends Command
@@ -17,30 +19,29 @@ final class LinkRobotsTxtCommand extends Command
         $xmlUrl = (string) url((string) config('sitemap.xml_path', '/sitemap.xml'));
         $path = public_path('robots.txt');
 
-        $existing = is_file($path) ? (string) file_get_contents($path) : '';
+        $outcome = (new RobotsTxtSync($path, $xmlUrl, canWrite: true))->check();
 
-        if (str_contains($existing, $xmlUrl)) {
-            $this->components->info('robots.txt already references the sitemap.');
+        return match ($outcome) {
+            RobotsTxtSyncOutcome::AlreadyLinked => $this->reportSuccess('robots.txt already references the sitemap.'),
+            RobotsTxtSyncOutcome::Created, RobotsTxtSyncOutcome::Appended => $this->reportSuccess("Added Sitemap: {$xmlUrl} to robots.txt."),
+            RobotsTxtSyncOutcome::Skipped => $this->reportFailure(
+                "Could not update {$path} - it may not be writable, or already have a different Sitemap: line ".
+                '(check the log for which).',
+            ),
+        };
+    }
 
-            return self::SUCCESS;
-        }
-
-        $writable = is_file($path) ? is_writable($path) : is_writable(dirname($path));
-
-        if (! $writable) {
-            $this->components->error("Could not write to {$path} - check it's writable by the user running this command.");
-
-            return self::FAILURE;
-        }
-
-        $contents = $existing === ''
-            ? "User-agent: *\nDisallow:\n\nSitemap: {$xmlUrl}\n"
-            : rtrim($existing)."\n\nSitemap: {$xmlUrl}\n";
-
-        file_put_contents($path, $contents);
-
-        $this->components->info('Added Sitemap: '.$xmlUrl.' to robots.txt.');
+    private function reportSuccess(string $message): int
+    {
+        $this->components->info($message);
 
         return self::SUCCESS;
+    }
+
+    private function reportFailure(string $message): int
+    {
+        $this->components->error($message);
+
+        return self::FAILURE;
     }
 }

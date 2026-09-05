@@ -48,13 +48,20 @@ Once the number of included URLs exceeds `chunk_size` (default 50,000, matching 
 
 ## Letting crawlers discover it
 
-A crawler finds `sitemap.xml` passively via a `Sitemap:` line in `robots.txt` - not via an HTML `<link>` tag, and not automatically, since `robots.txt` is almost always served as a static file in `public/` (as Laravel's own default install ships one) that the web server returns directly, before Laravel ever sees the request. This package can't safely add a route for it (it would be silently shadowed by that static file) or assume it can write to `public/` in production, so it doesn't touch `robots.txt` on its own. Instead:
+A crawler finds `sitemap.xml` passively via a `Sitemap:` line in `robots.txt` - not via an HTML `<link>` tag, and not automatically, since `robots.txt` is almost always served as a static file in `public/` (as Laravel's own default install ships one) that the web server returns directly, before Laravel ever sees the request. This package can't safely add a route for it (it would be silently shadowed by that static file), so it never touches `robots.txt` from a real web request. It does, however, keep it in sync automatically after a deploy:
 
-```bash
-php artisan sitemap:link-robots
+```php
+// config/sitemap.php
+'sync_robots_after_commands' => ['migrate'], // the default; [] to disable
 ```
 
-Creates `public/robots.txt` if it doesn't exist, or appends a `Sitemap:` line to it if one referencing this app's XML sitemap isn't already there. Safe to run more than once - it's a no-op once the line is present. If `robots.txt` already exists but is missing that line, a warning is logged at boot pointing at this command, the same way an existing route/static-file collision is warned about elsewhere in this package.
+The same "a deploy probably just happened" signal used for [cache-clearing](#caching) also syncs `robots.txt`, since a console command runs as the same user that just wrote the rest of the deployed code (unlike a real HTTP request, where the web server user often can't write to `public/`):
+
+- **Missing entirely** - created outright, allowing all crawling (`User-agent: *\nDisallow:`) plus the `Sitemap:` line.
+- **Exists, no `Sitemap:` line** - the line is appended; everything else in the file is left untouched.
+- **Exists, but its `Sitemap:` line points somewhere else** - left alone. A mismatch here usually means a stale entry from before a domain/path change, and that's a human decision this package won't guess at - a warning is logged instead (see below), not an error, since the app still loads fine either way.
+
+Run `php artisan sitemap:link-robots` any time to apply the same logic immediately rather than waiting for the next deploy - useful right after installing the package, or to check current status. Safe to run more than once - it's a no-op once the line is present, and it warns (rather than silently overwriting) the same mismatch case above.
 
 This has nothing to do with duplicate-content risk, in case that's a concern: having both an HTML sitemap (for people) and an XML sitemap (for crawlers) pointing at the same URLs isn't a penalty - Google's own guidance recommends exactly this pairing. An XML sitemap isn't indexed as a page in its own right; it's a protocol file, not content competing for ranking.
 

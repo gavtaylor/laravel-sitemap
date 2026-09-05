@@ -89,6 +89,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Sync robots.txt after these Artisan commands
+    |--------------------------------------------------------------------------
+    |
+    | A crawler discovers the XML sitemap via a `Sitemap:` line in
+    | robots.txt - not automatically, since robots.txt is normally a static
+    | file the web server returns directly (see the "Excluded" note on
+    | `sitemap:link-robots` in the README). Rather than relying on that
+    | command being remembered, the same commands configured above also
+    | trigger an automatic check after they finish successfully: create
+    | robots.txt if it's missing entirely (allowing all crawling), or add
+    | the Sitemap: line if the file exists without one. If robots.txt
+    | already has a *different* Sitemap: line, it's left alone and a
+    | warning is logged instead - that's a human decision (a stale entry
+    | from before a domain change, say), not something to silently
+    | overwrite. Set to an empty array to disable.
+    |
+    */
+
+    'sync_robots_after_commands' => array_values(array_filter(explode(',', (string) env(
+        'SITEMAP_SYNC_ROBOTS_AFTER_COMMANDS',
+        'migrate',
+    )))),
+
+    /*
+    |--------------------------------------------------------------------------
     | Chunk size
     |--------------------------------------------------------------------------
     |

@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.4.0...main)
 
+- `robots.txt` is now kept in sync automatically after a deploy (the same `sync_robots_after_commands` signal used for cache-clearing, default `['migrate']`), instead of relying on someone remembering to run `sitemap:link-robots` manually - this was found missing on multiple real sites after install. Creates the file if it's missing entirely (allowing all crawling), appends the `Sitemap:` line if the file exists without one, and logs a warning - without ever overwriting it - if an existing `Sitemap:` line points somewhere else, since that's a misconfiguration only a human can judge. `RobotsTxtWarning` is replaced by `RobotsTxtSync`, which does both the passive check and the new writing.
+
 ## [v0.4.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.4.0) - 2026-09-05
 
 - The HTML sitemap now groups a route by its own name prefix first (Laravel's native `Route::name('about-us.')->group(...)` convention) before falling back to its URL segment - lets otherwise-unrelated pages be grouped together (e.g. to match a site's nav menu) without renaming or moving any URL. A route's label strips a redundant leading repeat of its group name (`about-us.plan` -> label "About Us Plan" -> "Plan", since "About Us" is already the section heading).
