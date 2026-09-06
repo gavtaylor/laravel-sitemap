@@ -1,6 +1,8 @@
 # Release Notes
 
-## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.5.0...main)
+## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.6.0...main)
+
+## [v0.6.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.6.0) - 2026-09-06
 
 - New `label_glossary` config - a word-level casing dictionary (e.g. `'eca' => 'ECA'`) applied to every generated label and group heading, so an acronym that `Str::headline()` would otherwise flatten to title case ("Eca Committee") reads correctly ("ECA Committee") everywhere it appears, from one entry rather than a full-label override per affected route.
 
