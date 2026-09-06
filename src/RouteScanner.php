@@ -326,14 +326,14 @@ final class RouteScanner
 
         $prefix = Str::before($name, '.');
 
-        return $prefix === '' ? null : Str::headline($prefix);
+        return $prefix === '' ? null : $this->headline($prefix);
     }
 
     private function urlSegmentGroup(Route $route): string
     {
         $segment = explode('/', trim($route->uri(), '/'))[0];
 
-        return $segment === '' ? self::ROOT_GROUP : Str::headline($segment);
+        return $segment === '' ? self::ROOT_GROUP : $this->headline($segment);
     }
 
     /**
@@ -348,7 +348,7 @@ final class RouteScanner
         $name = $route->getName();
 
         if ($name !== null && $name !== '') {
-            return $this->dropIndexSuffix(Str::headline(str_replace(['.', '_'], ' ', $name)));
+            return $this->dropIndexSuffix($this->headline(str_replace(['.', '_'], ' ', $name)));
         }
 
         return $this->labelFromSegment($route->uri());
@@ -370,7 +370,40 @@ final class RouteScanner
     {
         $segment = collect(explode('/', trim($uri, '/')))->last();
 
-        return $segment !== null && $segment !== '' ? Str::headline($segment) : 'Home';
+        return $segment !== null && $segment !== '' ? $this->headline($segment) : 'Home';
+    }
+
+    /**
+     * Str::headline(), then applies the configured word-level casing
+     * overrides (see sitemap.label_glossary config docs) - so an acronym
+     * that Str::headline() would otherwise flatten to title case (e.g.
+     * "eca-committee" -> "Eca Committee") reads correctly ("ECA Committee")
+     * in every label and group heading it appears in, from one glossary
+     * entry rather than a full-label override per affected route.
+     */
+    private function headline(string $value): string
+    {
+        $headline = Str::headline($value);
+
+        /** @var array<string, string> $glossary */
+        $glossary = config('sitemap.label_glossary', []);
+
+        if ($glossary === []) {
+            return $headline;
+        }
+
+        $lookup = [];
+
+        foreach ($glossary as $word => $replacement) {
+            $lookup[Str::lower((string) $word)] = $replacement;
+        }
+
+        $words = array_map(
+            fn (string $word) => $lookup[Str::lower($word)] ?? $word,
+            explode(' ', $headline),
+        );
+
+        return implode(' ', $words);
     }
 
     /**

@@ -200,6 +200,48 @@ it('labels an unnamed route from its last URI segment', function () {
     expect($url->label)->toBe('About Us');
 });
 
+it('applies a configured label glossary word to a route label', function () {
+    config(['sitemap.label_glossary' => ['eca' => 'ECA']]);
+
+    RouteFacade::get('/eca-committee', fn () => '')->name('eca-committee');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/eca-committee');
+
+    expect($url->label)->toBe('ECA Committee');
+});
+
+it('applies a configured label glossary word to a name-prefix group heading', function () {
+    config(['sitemap.label_glossary' => ['eca' => 'ECA']]);
+
+    RouteFacade::name('eca.')->group(function () {
+        RouteFacade::get('/eca-events', fn () => '')->name('events');
+    });
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/eca-events');
+
+    expect($url->group)->toBe('ECA');
+});
+
+it('matches a configured label glossary word case-insensitively', function () {
+    config(['sitemap.label_glossary' => ['ECA' => 'ECA']]);
+
+    RouteFacade::get('/eca-committee', fn () => '')->name('eca-committee');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/eca-committee');
+
+    expect($url->label)->toBe('ECA Committee');
+});
+
+it('leaves labels untouched when no label glossary is configured', function () {
+    config(['sitemap.label_glossary' => []]);
+
+    RouteFacade::get('/eca-committee', fn () => '')->name('eca-committee');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/eca-committee');
+
+    expect($url->label)->toBe('Eca Committee');
+});
+
 it('resolves a parameterized route with a registered resolver', function () {
     config(['sitemap.route_resolvers' => ['blog.show' => StubSlugResolver::class]]);
 

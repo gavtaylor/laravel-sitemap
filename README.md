@@ -40,6 +40,17 @@ This is a public contract: once you've customised the view, treat changes to the
 
 A raw URL makes a poor link's visible text, so every `SitemapUrl` carries a human-readable `label` too - the package's own bundled view uses it, and a custom one should too. It's derived from the route name where possible (`clients.index` -> "Clients" - the trailing "Index" from Laravel's resource-controller convention is dropped, since it reads as developer jargon rather than something a visitor would say), falling back to the last URI segment for an unnamed route (`/about-us` -> "About Us"). A [route resolver](#resolving-parameterized-routes) can supply an exact label per URL instead, when the humanised guess isn't good enough (e.g. a blog post's real title).
 
+Labels (and [group headings](#grouping)) are title-cased with `Str::headline()`, which has no idea an acronym should stay fully uppercase - `eca-committee` headlines to "Eca Committee". Rather than overriding the full label of every affected route by hand, list the correction once as a `label_glossary` entry, keyed by the lowercase word:
+
+```php
+// config/sitemap.php
+'label_glossary' => [
+    'eca' => 'ECA',
+],
+```
+
+That one entry fixes "Eca Committee", "Eca 2026 Candidate", and every other headlined word "Eca" alike, in any label or group heading, with nothing to maintain per-route as new ones are added.
+
 ## The XML view
 
 `/sitemap.xml` follows the [sitemaps.org protocol](https://www.sitemaps.org/protocol.html) (the specification Google, Bing, and others actually implement - it predates and isn't itself an RFC). Each URL gets a `<loc>`, and a `<lastmod>` only if you've configured a resolver (see below). `<priority>` and `<changefreq>` are deliberately never emitted - Google's own documentation says both are ignored, so there's nothing to configure.

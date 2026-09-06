@@ -234,4 +234,27 @@ return [
 
     'lastmod_resolver' => env('SITEMAP_LASTMOD_RESOLVER'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Label glossary
+    |--------------------------------------------------------------------------
+    |
+    | Every label and group heading is built by running Str::headline() over
+    | a route name or URL segment, which title-cases each word but has no
+    | idea an acronym should stay fully uppercase - 'eca-committee' headlines
+    | to "Eca Committee", not "ECA Committee". Rather than overriding the
+    | full label of every affected route by hand, list the correction once
+    | here, keyed by the lowercase word as Str::headline() produces it - it's
+    | then applied to that word wherever it appears, in any label or group:
+    |
+    |   'eca' => 'ECA',
+    |
+    | fixes "Eca Committee", "Eca 2026 Candidate", and every other headlined
+    | word "Eca" alike, with nothing to maintain per-route as new ones are
+    | added.
+    |
+    */
+
+    'label_glossary' => [],
+
 ];
