@@ -232,6 +232,49 @@ it('matches a configured label glossary word case-insensitively', function () {
     expect($url->label)->toBe('ECA Committee');
 });
 
+it('applies a configured multi-word label glossary phrase', function () {
+    config(['sitemap.label_glossary' => ['reach newsletter' => 'REACH Newsletter']]);
+
+    RouteFacade::get('/reach-newsletter', fn () => '')->name('reach-newsletter');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/reach-newsletter');
+
+    expect($url->label)->toBe('REACH Newsletter');
+});
+
+it('does not apply a single-word glossary entry to an unrelated route using the same word', function () {
+    config(['sitemap.label_glossary' => ['reach newsletter' => 'REACH Newsletter']]);
+
+    RouteFacade::get('/our-reach', fn () => '')->name('our-reach');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/our-reach');
+
+    expect($url->label)->toBe('Our Reach');
+});
+
+it('prefers a longer glossary phrase over a shorter one matching its first word', function () {
+    config(['sitemap.label_glossary' => [
+        'reach' => 'WRONG',
+        'reach newsletter' => 'REACH Newsletter',
+    ]]);
+
+    RouteFacade::get('/reach-newsletter', fn () => '')->name('reach-newsletter');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/reach-newsletter');
+
+    expect($url->label)->toBe('REACH Newsletter');
+});
+
+it('allows a glossary phrase replacement to introduce punctuation, not just casing', function () {
+    config(['sitemap.label_glossary' => ['six point' => 'Six-Point']]);
+
+    RouteFacade::get('/six-point-plan', fn () => '')->name('six-point-plan');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => parse_url($url->url, PHP_URL_PATH) === '/six-point-plan');
+
+    expect($url->label)->toBe('Six-Point Plan');
+});
+
 it('leaves labels untouched when no label glossary is configured', function () {
     config(['sitemap.label_glossary' => []]);
 

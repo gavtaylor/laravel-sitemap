@@ -244,14 +244,24 @@ return [
     | idea an acronym should stay fully uppercase - 'eca-committee' headlines
     | to "Eca Committee", not "ECA Committee". Rather than overriding the
     | full label of every affected route by hand, list the correction once
-    | here, keyed by the lowercase word as Str::headline() produces it - it's
-    | then applied to that word wherever it appears, in any label or group:
+    | here, matched case-insensitively wherever it appears in any label or
+    | group. A single-word key fixes every occurrence of that word:
     |
     |   'eca' => 'ECA',
     |
     | fixes "Eca Committee", "Eca 2026 Candidate", and every other headlined
     | word "Eca" alike, with nothing to maintain per-route as new ones are
-    | added.
+    | added. A space-separated phrase key matches only that exact run of
+    | words, for a word that shouldn't be corrected everywhere it appears -
+    | 'reach' alone would wrongly force any unrelated "Reach" into "REACH",
+    | so scope it to the one route it actually means an acronym on instead:
+    |
+    |   'reach newsletter' => 'REACH Newsletter',
+    |
+    | Phrases are matched longest-first, so a multi-word entry always wins
+    | over a shorter one that only matches its first word. The replacement
+    | is substituted verbatim, so a phrase can fix more than casing too -
+    | 'six point' => 'Six-Point' turns "Six Point Plan" into "Six-Point Plan".
     |
     */
 

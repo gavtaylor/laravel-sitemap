@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.6.0...main)
 
+- `label_glossary` entries can now be a space-separated phrase (`'reach newsletter' => 'REACH Newsletter'`), matched only against that exact run of words, alongside the existing single-word form - a single-word entry corrects every occurrence of that word, which is wrong when the word has an unrelated, non-acronym meaning elsewhere in the app. Phrases are matched longest-first so a multi-word entry always wins over a shorter one that only matches its first word.
+
 ## [v0.6.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.6.0) - 2026-09-06
 
 - New `label_glossary` config - a word-level casing dictionary (e.g. `'eca' => 'ECA'`) applied to every generated label and group heading, so an acronym that `Str::headline()` would otherwise flatten to title case ("Eca Committee") reads correctly ("ECA Committee") everywhere it appears, from one entry rather than a full-label override per affected route.

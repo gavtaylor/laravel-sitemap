@@ -40,16 +40,19 @@ This is a public contract: once you've customised the view, treat changes to the
 
 A raw URL makes a poor link's visible text, so every `SitemapUrl` carries a human-readable `label` too - the package's own bundled view uses it, and a custom one should too. It's derived from the route name where possible (`clients.index` -> "Clients" - the trailing "Index" from Laravel's resource-controller convention is dropped, since it reads as developer jargon rather than something a visitor would say), falling back to the last URI segment for an unnamed route (`/about-us` -> "About Us"). A [route resolver](#resolving-parameterized-routes) can supply an exact label per URL instead, when the humanised guess isn't good enough (e.g. a blog post's real title).
 
-Labels (and [group headings](#grouping)) are title-cased with `Str::headline()`, which has no idea an acronym should stay fully uppercase - `eca-committee` headlines to "Eca Committee". Rather than overriding the full label of every affected route by hand, list the correction once as a `label_glossary` entry, keyed by the lowercase word:
+Labels (and [group headings](#grouping)) are title-cased with `Str::headline()`, which has no idea an acronym should stay fully uppercase - `eca-committee` headlines to "Eca Committee". Rather than overriding the full label of every affected route by hand, list the correction once as a `label_glossary` entry:
 
 ```php
 // config/sitemap.php
 'label_glossary' => [
     'eca' => 'ECA',
+    'reach newsletter' => 'REACH Newsletter',
 ],
 ```
 
-That one entry fixes "Eca Committee", "Eca 2026 Candidate", and every other headlined word "Eca" alike, in any label or group heading, with nothing to maintain per-route as new ones are added.
+A single-word key (`'eca'`) fixes every occurrence of that word, case-insensitively, in any label or group heading - "Eca Committee", "Eca 2026 Candidate", and so on - with nothing to maintain per-route as new ones are added. A space-separated phrase key (`'reach newsletter'`) matches only that exact run of words instead, for a word that shouldn't be corrected everywhere it appears - `'reach' => 'REACH'` alone would wrongly force an unrelated route's "Reach" into "REACH" too, so scope it to the specific phrase that actually means an acronym. Phrases are matched longest-first, so a multi-word entry always wins over a shorter one that only matches its first word.
+
+The replacement is substituted verbatim, so a phrase entry can fix more than casing - `'six point' => 'Six-Point'` turns "Six Point Plan" into "Six-Point Plan".
 
 ## The XML view
 

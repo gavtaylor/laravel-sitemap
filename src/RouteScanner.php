@@ -374,9 +374,9 @@ final class RouteScanner
     }
 
     /**
-     * Str::headline(), then applies the configured word-level casing
-     * overrides (see sitemap.label_glossary config docs) - so an acronym
-     * that Str::headline() would otherwise flatten to title case (e.g.
+     * Str::headline(), then applies the configured casing overrides (see
+     * sitemap.label_glossary config docs) - so an acronym that
+     * Str::headline() would otherwise flatten to title case (e.g.
      * "eca-committee" -> "Eca Committee") reads correctly ("ECA Committee")
      * in every label and group heading it appears in, from one glossary
      * entry rather than a full-label override per affected route.
@@ -392,18 +392,62 @@ final class RouteScanner
             return $headline;
         }
 
+        return $this->applyGlossary($headline, $glossary);
+    }
+
+    /**
+     * Each glossary key can be one word ('eca' => 'ECA', applied wherever
+     * that word appears) or a space-separated phrase ('reach newsletter' =>
+     * 'REACH Newsletter', applied only to that exact run of words) - a
+     * single-word entry would otherwise force every occurrence of an
+     * ordinary word into an acronym regardless of context. Phrases are
+     * matched longest-first so a multi-word entry isn't pre-empted by a
+     * shorter one that only matches its first word.
+     *
+     * @param  array<string, string>  $glossary
+     */
+    private function applyGlossary(string $headline, array $glossary): string
+    {
         $lookup = [];
 
-        foreach ($glossary as $word => $replacement) {
-            $lookup[Str::lower((string) $word)] = $replacement;
+        foreach ($glossary as $phrase => $replacement) {
+            $lookup[Str::lower((string) $phrase)] = $replacement;
         }
 
-        $words = array_map(
-            fn (string $word) => $lookup[Str::lower($word)] ?? $word,
-            explode(' ', $headline),
-        );
+        $lengths = array_unique(array_map(
+            fn (string $phrase) => substr_count($phrase, ' ') + 1,
+            array_keys($lookup),
+        ));
+        rsort($lengths);
 
-        return implode(' ', $words);
+        $words = explode(' ', $headline);
+        $result = [];
+
+        for ($i = 0; $i < count($words); $i++) {
+            $matched = false;
+
+            foreach ($lengths as $length) {
+                if ($i + $length > count($words)) {
+                    continue;
+                }
+
+                $candidate = Str::lower(implode(' ', array_slice($words, $i, $length)));
+
+                if (isset($lookup[$candidate])) {
+                    $result[] = $lookup[$candidate];
+                    $i += $length - 1;
+                    $matched = true;
+
+                    break;
+                }
+            }
+
+            if (! $matched) {
+                $result[] = $words[$i];
+            }
+        }
+
+        return implode(' ', $result);
     }
 
     /**
