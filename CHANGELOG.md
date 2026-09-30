@@ -2,6 +2,8 @@
 
 ## [Unreleased](https://github.com/gavtaylor/laravel-sitemap/compare/v0.7.0...main)
 
+- Named sitemaps. A `sitemaps` config entry moves matching routes onto their own XML file (a news archive, for example) while `/sitemap.xml` becomes a `<sitemapindex>` linking that file and the default page list. The HTML sitemap lists only the default sitemap, so the long tail doesn't crowd the page people use to find a page. `SitemapCache::get()` with no argument still returns every URL, so a consumer that reuses the scan (IndexNow) doesn't lose the URLs that moved. Empty `sitemaps` keeps the previous single-sitemap behaviour.
+
 ## [v0.7.0](https://github.com/gavtaylor/laravel-sitemap/releases/tag/v0.7.0) - 2026-09-06
 
 - `label_glossary` entries can now be a space-separated phrase (`'reach newsletter' => 'REACH Newsletter'`), matched only against that exact run of words, alongside the existing single-word form - a single-word entry corrects every occurrence of that word, which is wrong when the word has an unrelated, non-acronym meaning elsewhere in the app. Phrases are matched longest-first so a multi-word entry always wins over a shorter one that only matches its first word.

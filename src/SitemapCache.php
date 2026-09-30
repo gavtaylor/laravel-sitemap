@@ -24,9 +24,31 @@ final class SitemapCache
     }
 
     /**
+     * Every scanned URL, or just one sitemap's URLs when $sitemap is given.
+     * Callers that reuse the scan as their own URL list (IndexNow) should
+     * keep calling this with no argument: splitting a named sitemap off the
+     * HTML page does not drop those URLs from the full list.
+     *
      * @return list<SitemapUrl>
      */
-    public function get(): array
+    public function get(?string $sitemap = null): array
+    {
+        $urls = $this->all();
+
+        if ($sitemap === null) {
+            return $urls;
+        }
+
+        return array_values(array_filter(
+            $urls,
+            fn (SitemapUrl $url): bool => $url->sitemap === $sitemap,
+        ));
+    }
+
+    /**
+     * @return list<SitemapUrl>
+     */
+    private function all(): array
     {
         $ttl = (int) config('sitemap.cache_seconds', 3600);
 
@@ -57,15 +79,22 @@ final class SitemapCache
     }
 
     /**
-     * @return list<array{url: string, group: string, label: string, lastmod: string|null}>|null
+     * @return list<array{url: string, group: string, label: string, lastmod: string|null, sitemap?: string}>|null
      */
     private function read(): ?array
     {
         try {
-            /** @var list<array{url: string, group: string, label: string, lastmod: string|null}>|null $cached */
+            /** @var list<array{url: string, group: string, label: string, lastmod: string|null, sitemap?: string}>|null $cached */
             $cached = $this->cache->get(self::CACHE_KEY);
 
-            return $cached;
+            // A payload written before named sitemaps has no `sitemap` key.
+            // Treat it as a miss so the next request files each URL correctly
+            // instead of leaving an archive on the default sitemap until the TTL.
+            if (is_array($cached) && isset($cached[0]) && ! array_key_exists('sitemap', $cached[0])) {
+                return null;
+            }
+
+            return is_array($cached) ? $cached : null;
         } catch (Throwable $e) {
             report($e);
 
@@ -90,7 +119,7 @@ final class SitemapCache
     }
 
     /**
-     * @param  list<array{url: string, group: string, label: string, lastmod: string|null}>  $cached
+     * @param  list<array{url: string, group: string, label: string, lastmod: string|null, sitemap?: string}>  $cached
      * @return list<SitemapUrl>
      */
     private function hydrate(array $cached): array
@@ -102,6 +131,7 @@ final class SitemapCache
                     $url['group'],
                     $url['label'],
                     $url['lastmod'] !== null ? new DateTimeImmutable($url['lastmod']) : null,
+                    $url['sitemap'] ?? 'default',
                 ),
                 $cached,
             );

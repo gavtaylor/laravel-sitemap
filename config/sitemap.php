@@ -41,13 +41,63 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Default page-list path
+    |--------------------------------------------------------------------------
+    |
+    | Used only once `sitemaps` below is non-empty. The main xml_path then
+    | serves a <sitemapindex>, and the default page list (everything not
+    | claimed by a named sitemap) moves here so the index can occupy
+    | xml_path. Leave it different from xml_path and from every named
+    | sitemap's xml_path. Ignored entirely when `sitemaps` is empty.
+    |
+    */
+
+    'pages_xml_path' => env('SITEMAP_PAGES_XML_PATH', '/sitemap-pages.xml'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Named sitemaps
+    |--------------------------------------------------------------------------
+    |
+    | Extra XML sitemaps for a long tail of similar URLs (a news archive, a
+    | catalogue) that would otherwise crowd the human sitemap. Empty by
+    | default: one HTML page and one XML sitemap, as before.
+    |
+    | Each entry needs an xml_path and route_names. route_names is matched
+    | with Str::is(), so wildcards work ('news.*'). The first entry whose
+    | pattern matches a route's name wins. Everything else stays on the
+    | default sitemap. The key `default` is reserved and ignored.
+    |
+    |   'sitemaps' => [
+    |       'news' => [
+    |           'xml_path' => '/sitemap-news.xml',
+    |           'route_names' => ['news.show'],
+    |       ],
+    |   ],
+    |
+    | Once this is non-empty, xml_path serves a <sitemapindex> linking the
+    | default page list (pages_xml_path) and each named sitemap. The HTML
+    | sitemap lists only the default sitemap. A child that exceeds
+    | chunk_size is listed as numbered ?page= files, never as a nested
+    | index. SitemapCache::get() with no argument still returns every URL,
+    | including ones filed under a named sitemap — pass a name to read one
+    | sitemap's URLs.
+    |
+    */
+
+    'sitemaps' => [],
+
+    /*
+    |--------------------------------------------------------------------------
     | Route name prefix
     |--------------------------------------------------------------------------
     |
-    | Both routes are named using this prefix (`{prefix}.html`, `{prefix}.xml`)
-    | so the app can generate URLs with route('sitemap.html') /
-    | route('sitemap.xml'). Also used to recognise and exclude this
-    | package's own routes from the scan, so the sitemap never lists itself.
+    | Routes are named using this prefix (`{prefix}.html`, `{prefix}.xml`,
+    | and `{prefix}.pages.xml` / `{prefix}.{name}.xml` once named sitemaps
+    | are configured) so the app can generate URLs with
+    | route('sitemap.html') / route('sitemap.xml'). Also used to recognise
+    | and exclude this package's own routes from the scan, so the sitemap
+    | never lists itself.
     |
     */
 

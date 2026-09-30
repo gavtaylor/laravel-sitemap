@@ -12,6 +12,7 @@ it('converts to an array with an ISO 8601 lastmod', function () {
         'group' => 'general',
         'label' => 'About',
         'lastmod' => '2026-01-01T12:00:00+00:00',
+        'sitemap' => 'default',
     ]);
 });
 
@@ -23,5 +24,6 @@ it('converts to an array with a null lastmod', function () {
         'group' => 'general',
         'label' => 'About',
         'lastmod' => null,
+        'sitemap' => 'default',
     ]);
 });

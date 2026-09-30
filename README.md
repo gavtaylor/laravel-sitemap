@@ -32,7 +32,7 @@ The HTML view receives a single variable:
 |-----------|------------------------------------------------|------------------------------------------------------------------|
 | `$groups` | `Collection<string, Collection<int, SitemapUrl>>` | Included URLs, grouped (see [Grouping](#grouping) below) and sorted alphabetically by label both within and across groups. A group with only one page (e.g. `/about`) is folded into "General" alongside the homepage instead of getting a one-item section of its own; "General" always comes first, with the homepage pinned at the top of it |
 
-`SitemapUrl` is a simple read-only object: `$url->url` (string), `$url->group` (string, the raw un-headlined segment), `$url->label` (string, human-readable link text - see below), `$url->lastmod` (`?DateTimeInterface`).
+`SitemapUrl` is a simple read-only object: `$url->url` (string), `$url->group` (string, the raw un-headlined segment), `$url->label` (string, human-readable link text - see below), `$url->lastmod` (`?DateTimeInterface`), `$url->sitemap` (string, `default` unless the URL was filed under a [named sitemap](#multiple-sitemaps)).
 
 This is a public contract: once you've customised the view, treat changes to these variables as breaking changes.
 
@@ -59,6 +59,30 @@ The replacement is substituted verbatim, so a phrase entry can fix more than cas
 `/sitemap.xml` follows the [sitemaps.org protocol](https://www.sitemaps.org/protocol.html) (the specification Google, Bing, and others actually implement - it predates and isn't itself an RFC). Each URL gets a `<loc>`, and a `<lastmod>` only if you've configured a resolver (see below). `<priority>` and `<changefreq>` are deliberately never emitted - Google's own documentation says both are ignored, so there's nothing to configure.
 
 Once the number of included URLs exceeds `chunk_size` (default 50,000, matching the sitemaps.org/Google per-file limit), `/sitemap.xml` automatically serves a `<sitemapindex>` pointing at numbered pages (`?page=1`, `?page=2`, ...) instead of a flat `<urlset>`. Nothing to configure for this to kick in.
+
+## Multiple sitemaps
+
+Leave `sitemaps` empty and there is one sitemap, as above. A long tail of similar URLs (a news archive, a catalogue) can move onto its own XML file so the human page stays a list of the site's pages, and that file can be submitted to a search engine on its own:
+
+```php
+// config/sitemap.php
+'sitemaps' => [
+    'news' => [
+        'xml_path' => '/sitemap-news.xml',
+        'route_names' => ['news.show'],
+    ],
+],
+```
+
+`route_names` is matched with `Str::is()`, so `news.*` works. The first configured sitemap whose pattern matches a route's name wins. Everything else stays on the default sitemap. The key `default` is reserved and ignored.
+
+Once `sitemaps` is non-empty:
+
+- `/sitemap.xml` serves a `<sitemapindex>` linking the default page list and each named sitemap. `robots.txt` keeps pointing at `/sitemap.xml`, so a crawler that only knows that URL still finds every child. Submitting a child URL directly (Search Console's "add a sitemap") works as well; the index link is not required for that.
+- The default page list moves to `pages_xml_path` (default `/sitemap-pages.xml`) so the index can occupy `xml_path`. Keep it different from `xml_path` and from every named `xml_path`.
+- `/sitemap` (HTML) lists only the default sitemap. Named sitemaps are XML-only.
+- A child that itself exceeds `chunk_size` is listed in the index as numbered `?page=` files. An index is never pointed at another index; the protocol doesn't allow it.
+- `SitemapCache::get()` with no argument still returns every URL, including ones filed under a named sitemap. Pass a name (`get('news')`) to read one sitemap. Anything that reuses the scan as its URL list (IndexNow) should keep calling `get()` with no argument, so splitting a sitemap does not drop those URLs.
 
 ## Letting crawlers discover it
 

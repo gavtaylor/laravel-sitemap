@@ -307,6 +307,47 @@ it('resolves a parameterized route with an explicit label and lastmod', function
     expect($url->lastmod->format('Y-m-d'))->toBe('2026-03-01');
 });
 
+it('files a matching route on a named sitemap and leaves the rest on the default', function () {
+    config([
+        'sitemap.sitemaps' => [
+            'news' => [
+                'xml_path' => '/sitemap-news.xml',
+                'route_names' => ['news.show'],
+            ],
+        ],
+        'sitemap.route_resolvers' => [
+            'news.show' => StubSlugResolver::class,
+        ],
+    ]);
+
+    RouteFacade::get('/about', fn () => '')->name('about');
+    RouteFacade::get('/news/{slug}', fn (string $slug) => $slug)->name('news.show');
+
+    $urls = collect(scannedUrls());
+
+    expect($urls->first(fn (SitemapUrl $url) => str_ends_with($url->url, '/about'))->sitemap)->toBe('default');
+    expect($urls->first(fn (SitemapUrl $url) => str_contains($url->url, '/news/first-post'))->sitemap)->toBe('news');
+});
+
+it('gives the first configured sitemap the route when two of them match', function () {
+    config(['sitemap.sitemaps' => [
+        'news' => [
+            'xml_path' => '/sitemap-news.xml',
+            'route_names' => ['news.*'],
+        ],
+        'archive' => [
+            'xml_path' => '/sitemap-archive.xml',
+            'route_names' => ['news.show'],
+        ],
+    ]]);
+
+    RouteFacade::get('/news/story', fn () => '')->name('news.show');
+
+    $url = collect(scannedUrls())->first(fn (SitemapUrl $url) => str_ends_with($url->url, '/news/story'));
+
+    expect($url->sitemap)->toBe('news');
+});
+
 it('does not resolve a parameterized route with no registered resolver', function () {
     RouteFacade::get('/blog/{slug}', fn (string $slug) => $slug)->name('blog.show');
 

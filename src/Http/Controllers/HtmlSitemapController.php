@@ -21,7 +21,7 @@ final class HtmlSitemapController
 
     public function __invoke(): Response
     {
-        $grouped = collect($this->cache->get())
+        $grouped = collect($this->cache->get('default'))
             ->sortBy(fn (SitemapUrl $url) => $url->label)
             ->groupBy(fn (SitemapUrl $url) => $url->group);
 

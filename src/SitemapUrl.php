@@ -13,12 +13,13 @@ final class SitemapUrl
         public readonly string $group,
         public readonly string $label,
         public readonly ?DateTimeInterface $lastmod = null,
+        public readonly string $sitemap = 'default',
     ) {
         //
     }
 
     /**
-     * @return array{url: string, group: string, label: string, lastmod: string|null}
+     * @return array{url: string, group: string, label: string, lastmod: string|null, sitemap: string}
      */
     public function toArray(): array
     {
@@ -27,6 +28,7 @@ final class SitemapUrl
             'group' => $this->group,
             'label' => $this->label,
             'lastmod' => $this->lastmod?->format(DateTimeInterface::ATOM),
+            'sitemap' => $this->sitemap,
         ];
     }
 }

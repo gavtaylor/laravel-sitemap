@@ -63,6 +63,7 @@ final class RouteScanner
                 group: $group,
                 label: $this->stripRedundantGroupPrefix($this->label($route), $group),
                 lastmod: $this->lastmod($route),
+                sitemap: Sitemaps::nameFor($route->getName()),
             );
         }
 
@@ -140,6 +141,7 @@ final class RouteScanner
                 group: $group,
                 label: $resolved['label'] ?? $this->stripRedundantGroupPrefix($this->labelFromSegment($uri), $group),
                 lastmod: $this->normalizeLastmod($resolved['lastmod']),
+                sitemap: Sitemaps::nameFor($route->getName()),
             );
         }
 

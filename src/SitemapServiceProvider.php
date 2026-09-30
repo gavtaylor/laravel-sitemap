@@ -13,6 +13,7 @@ use GavTaylor\Sitemap\Support\RouteCollisionWarning;
 use Illuminate\Console\Events\CommandFinished;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
@@ -100,21 +101,97 @@ final class SitemapServiceProvider extends ServiceProvider
         $xmlPath = (string) config('sitemap.xml_path', '/sitemap.xml');
         $namePrefix = (string) config('sitemap.route_name_prefix', 'sitemap');
 
-        (new RouteCollisionWarning($this->app->make('router'), $htmlPath))->check();
-        (new RouteCollisionWarning($this->app->make('router'), $xmlPath))->check();
         (new RobotsTxtSync($this->app->make('path.public').'/robots.txt', url($xmlPath), canWrite: false))->check();
 
         $middleware = array_values(array_filter((array) config('sitemap.middleware', [])));
 
-        Route::get($htmlPath, HtmlSitemapController::class)
-            ->middleware($middleware)
-            ->name("{$namePrefix}.html");
+        $this->registerSitemapRoute($htmlPath, HtmlSitemapController::class, "{$namePrefix}.html", $middleware);
+        $this->registerSitemapRoute($xmlPath, XmlSitemapController::class, "{$namePrefix}.xml", $middleware);
 
-        Route::get($xmlPath, XmlSitemapController::class)
-            ->middleware($middleware)
-            ->name("{$namePrefix}.xml");
+        $this->registerNamedSitemapRoutes();
+    }
 
-        PreventRequestsDuringMaintenance::except($htmlPath);
-        PreventRequestsDuringMaintenance::except($xmlPath);
+    /**
+     * Child XML routes for `sitemap.sitemaps`. Safe to call again after
+     * boot when config is applied late (tests); route names already
+     * registered are left as they are. A child path equal to the index
+     * or the default page-list path is skipped — registering it would
+     * replace that route.
+     */
+    public function registerNamedSitemapRoutes(): void
+    {
+        $named = Sitemaps::named();
+
+        if ($named === []) {
+            return;
+        }
+
+        $namePrefix = (string) config('sitemap.route_name_prefix', 'sitemap');
+        $middleware = array_values(array_filter((array) config('sitemap.middleware', [])));
+        $indexPath = $this->normalisePath((string) config('sitemap.xml_path', '/sitemap.xml'));
+        $pagesPath = $this->normalisePath((string) config('sitemap.pages_xml_path', '/sitemap-pages.xml'));
+        $pagesName = "{$namePrefix}.pages.xml";
+
+        if ($pagesPath === $indexPath) {
+            Log::warning('gavtaylor/laravel-sitemap: pages_xml_path matches xml_path, so the default page list has no route of its own.');
+        } elseif (! Route::has($pagesName)) {
+            $this->registerSitemapRoute(
+                (string) config('sitemap.pages_xml_path', '/sitemap-pages.xml'),
+                XmlSitemapController::class,
+                $pagesName,
+                $middleware,
+                'default',
+            );
+        }
+
+        foreach ($named as $name => $definition) {
+            $routeName = "{$namePrefix}.{$name}.xml";
+            $path = $this->normalisePath($definition['xml_path']);
+
+            if (Route::has($routeName)) {
+                continue;
+            }
+
+            if ($path === $indexPath || $path === $pagesPath) {
+                Log::warning(sprintf(
+                    'gavtaylor/laravel-sitemap: sitemap "%s" uses "%s", which is already the index or the default page list, so it was not registered.',
+                    $name,
+                    $definition['xml_path'],
+                ));
+
+                continue;
+            }
+
+            $this->registerSitemapRoute(
+                $definition['xml_path'],
+                XmlSitemapController::class,
+                $routeName,
+                $middleware,
+                $name,
+            );
+        }
+    }
+
+    private function normalisePath(string $path): string
+    {
+        return '/'.trim($path, '/');
+    }
+
+    /**
+     * @param  list<string>  $middleware
+     */
+    private function registerSitemapRoute(string $path, string $controller, string $name, array $middleware, ?string $sitemap = null): void
+    {
+        (new RouteCollisionWarning($this->app->make('router'), $path))->check();
+
+        $route = Route::get($path, $controller)
+            ->middleware($middleware)
+            ->name($name);
+
+        if ($sitemap !== null) {
+            $route->defaults('sitemap', $sitemap);
+        }
+
+        PreventRequestsDuringMaintenance::except($path);
     }
 }
